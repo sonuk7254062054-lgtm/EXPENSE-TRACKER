@@ -1,5 +1,7 @@
 # Expense Tracker
 
+> EXPENSE-TRACKER
+
 A personal expense tracker with a React/Vite frontend and an Express, MongoDB,
 and Mongoose backend. Authentication uses a server-side session stored in
 MongoDB and an HTTP-only cookie.
