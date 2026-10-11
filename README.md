@@ -110,6 +110,7 @@ the hosting dashboards:
 | Vercel | Build command | `npm run build` |
 | Vercel | Output directory | `dist` |
 | Vercel | Environment variable | `VITE_API_BASE_URL=https://<render-service-host>/api` |
+| Vercel | SPA fallback | `vercel.json` routes client-side paths to `/index.html` |
 | Render | Root directory | Repository root (`.`) |
 | Render | Build command | `npm ci` |
 | Render | Start command | `npm start` |
