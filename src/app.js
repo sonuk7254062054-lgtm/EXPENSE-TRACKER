@@ -9,12 +9,15 @@ import { createTransactionRouter } from "./routes/transactions.js";
 import { authenticate } from "./middleware/authenticate.js";
 import { requireCsrf } from "./middleware/csrf.js";
 import { createReportRouter } from "./routes/reports.js";
+import { createCorsMiddleware } from "./middleware/cors.js";
 
 export function createApp({
   databaseStatus = getDatabaseStatus,
   sessionSecret,
   sessionStore,
   trustedProxyHops = 0,
+  frontendOrigin,
+  production = process.env.NODE_ENV === "production",
 } = {}) {
   if (!sessionSecret || !sessionStore) {
     throw new Error("Session secret and persistent session store are required");
@@ -31,6 +34,7 @@ export function createApp({
     res.setHeader("Cache-Control", "no-store");
     return next();
   });
+  app.use("/api", createCorsMiddleware(frontendOrigin));
   app.use(
     session({
       name: "expense.sid",
@@ -41,8 +45,8 @@ export function createApp({
       rolling: true,
       cookie: {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
+        secure: production,
+        sameSite: production ? "none" : "lax",
         path: "/api",
         maxAge: 24 * 60 * 60 * 1000,
       },

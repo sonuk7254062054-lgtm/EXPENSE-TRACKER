@@ -44,7 +44,7 @@ export async function logout(req, res, next) {
     res.clearCookie("expense.sid", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       path: "/api",
     });
     return res.status(204).end();

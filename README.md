@@ -82,16 +82,70 @@ Backend settings are loaded from the root `.env` file by `dotenv`.
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `NODE_ENV` | No | `development` | `development`, `test`, or `production`. The session cookie is marked Secure in production. |
+| `NODE_ENV` | No | `development` | `development`, `test`, or `production`. Production cookies are Secure and use `SameSite=None` for the separate Vercel and Render origins. |
 | `PORT` | No | `3000` | HTTP port for the backend; valid range is 1–65535. |
 | `MONGODB_URI` | Yes | — | MongoDB connection URI. Use a dedicated development database for local work. |
 | `SESSION_SECRET` | Yes | — | Random secret, at least 32 characters. The sample value in `.env.example` is a placeholder and must be replaced. |
 | `TRUST_PROXY_HOPS` | No | `0` | Number of trusted proxy hops; configure only when the deployment topology is known. |
+| `FRONTEND_ORIGIN` | Production | — | Exact HTTPS origin of the deployed frontend, such as `https://expense-tracker.vercel.app`; no path or trailing slash. Required in production and used as the sole allowed cross-origin browser origin. |
 | `VITE_API_PROXY_TARGET` | No | `http://127.0.0.1:3000` | Frontend development-server proxy target for `/api`; set in the Vite process environment when the backend uses another port. |
+| `VITE_API_BASE_URL` | Vercel build | `/api` | Absolute deployed API base URL including `/api`, for example `https://expense-tracker-api.onrender.com/api`. Leave unset for local development. |
 
 The frontend calls relative `/api` URLs. In development, Vite proxies those
-requests to the configured backend target. No API URL or authentication secret
-is stored in browser local storage.
+requests to the configured backend target. A production build can set
+`VITE_API_BASE_URL` to call the separate backend origin. No API URL or
+authentication secret is stored in browser local storage.
+
+## Production deployment preparation
+
+The project is structured for a Vercel frontend, Render Node web service, and
+MongoDB Atlas database. It has no deployment manifests; set these values in
+the hosting dashboards:
+
+| Service | Root / setting | Value |
+| --- | --- | --- |
+| Vercel | Root directory | `frontend` |
+| Vercel | Build command | `npm run build` |
+| Vercel | Output directory | `dist` |
+| Vercel | Environment variable | `VITE_API_BASE_URL=https://<render-service-host>/api` |
+| Render | Root directory | Repository root (`.`) |
+| Render | Build command | `npm ci` |
+| Render | Start command | `npm start` |
+| Render | Health check path | `/api/health` |
+| Render | `NODE_ENV` | `production` |
+| Render | `PORT` | Set by Render; do not hard-code |
+| Render | `TRUST_PROXY_HOPS` | `1` for the Render reverse-proxy hop; confirm against the service topology |
+| Render | `MONGODB_URI` | Atlas connection URI for a dedicated production database; store only in Render's secret environment settings |
+| Render | `SESSION_SECRET` | Independently generated random secret of at least 32 characters; store only in Render's secret environment settings |
+| Render | `FRONTEND_ORIGIN` | Exact production Vercel HTTPS origin, e.g. `https://expense-tracker.vercel.app` |
+
+Provision the Atlas cluster and a dedicated database user with only the
+permissions the application needs on that database. Add the Render service's
+outbound IP addresses (or a dedicated static outbound IP, if required by the
+selected Render plan) to the Atlas IP access list. Do not use `0.0.0.0/0`.
+Use Atlas' generated `mongodb+srv://` URI and keep its password out of Git,
+Vercel, and the browser; set it only as Render's `MONGODB_URI`.
+
+The backend accepts Render's injected `PORT`, connects to MongoDB before
+listening, and reports readiness at `/api/health`. In production, startup
+requires `FRONTEND_ORIGIN` to be a path-free HTTPS origin. CORS allows only
+that exact origin and credentialed requests; production session cookies are
+HTTP-only, Secure, and `SameSite=None` so browsers can send them across the
+Vercel/Render origins. The frontend must use `credentials: include`, as the
+existing API client does. The default `vercel.app` and `onrender.com` domains
+are cross-site, and browser third-party-cookie protections can still block
+sessions even with `SameSite=None`. For dependable browser sessions, use
+custom frontend and API domains under the same registrable domain (for example
+`app.example.com` and `api.example.com`) or configure a same-origin proxy.
+Keep Vercel preview deployments out of production access unless their exact
+origins are intentionally configured.
+
+After setting environment variables, deploy the backend first, confirm
+`https://<render-service-host>/api/health` returns HTTP 200 with database
+status `connected`, then set the Vercel API base URL and deploy the frontend.
+Verify registration, login, session persistence, logout, and a transaction
+create/list/update/delete workflow on the public URLs before calling the app
+deployed. Do not use the local `.env` or local database URI in either provider.
 
 ## Available scripts
 

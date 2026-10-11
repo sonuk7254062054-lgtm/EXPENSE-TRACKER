@@ -69,23 +69,44 @@ test("malformed JSON receives a client error without leaking parser details", as
 });
 
 test("production auth cookie includes Secure", async () => {
-  const priorEnvironment = process.env.NODE_ENV;
-  process.env.NODE_ENV = "production";
-  try {
-    const app = createTestApp({ trustedProxyHops: 1 });
-    const response = await request(app)
-      .get("/api/auth/csrf")
-      .set("x-forwarded-proto", "https");
-    assert.equal(response.status, 200);
-    assert.equal(response.headers["cache-control"], "no-store");
-    assert.match(response.headers["set-cookie"][0], /Secure/i);
-    assert.match(response.headers["set-cookie"][0], /HttpOnly/i);
-    assert.match(response.headers["set-cookie"][0], /SameSite=Lax/i);
-  } finally {
-    if (priorEnvironment === undefined) {
-      delete process.env.NODE_ENV;
-    } else {
-      process.env.NODE_ENV = priorEnvironment;
-    }
-  }
+  const app = createTestApp({ trustedProxyHops: 1, production: true });
+  const response = await request(app)
+    .get("/api/auth/csrf")
+    .set("x-forwarded-proto", "https");
+  assert.equal(response.status, 200);
+  assert.equal(response.headers["cache-control"], "no-store");
+  assert.match(response.headers["set-cookie"][0], /Secure/i);
+  assert.match(response.headers["set-cookie"][0], /HttpOnly/i);
+  assert.match(response.headers["set-cookie"][0], /SameSite=None/i);
+});
+
+test("CORS allows only the configured frontend and supports credentialed preflight", async () => {
+  const frontendOrigin = "https://expense-tracker.vercel.app";
+  const app = createTestApp({
+    databaseStatus: () => "connected",
+    frontendOrigin,
+    production: true,
+  });
+
+  const health = await request(app)
+    .get("/api/health")
+    .set("Origin", frontendOrigin);
+  assert.equal(health.status, 200);
+  assert.equal(health.headers["access-control-allow-origin"], frontendOrigin);
+  assert.equal(health.headers["access-control-allow-credentials"], "true");
+
+  const preflight = await request(app)
+    .options("/api/auth/login")
+    .set("Origin", frontendOrigin)
+    .set("Access-Control-Request-Method", "POST")
+    .set("Access-Control-Request-Headers", "content-type,x-csrf-token");
+  assert.equal(preflight.status, 204);
+  assert.match(preflight.headers["access-control-allow-methods"], /POST/);
+  assert.match(preflight.headers["access-control-allow-headers"], /X-CSRF-Token/);
+
+  const denied = await request(app)
+    .get("/api/health")
+    .set("Origin", "https://untrusted.example.com");
+  assert.equal(denied.status, 403);
+  assert.equal(denied.body.error.code, "CORS_ORIGIN_DENIED");
 });

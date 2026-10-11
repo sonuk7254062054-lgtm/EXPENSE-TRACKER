@@ -1,4 +1,4 @@
-const API_ROOT = "/api";
+const API_ROOT = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/+$/, "");
 
 export class ApiError extends Error {
   constructor(status, code, message, details) {

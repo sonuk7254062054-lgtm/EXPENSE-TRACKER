@@ -21,6 +21,8 @@ async function startServer() {
     sessionSecret: config.SESSION_SECRET,
     sessionStore,
     trustedProxyHops: config.TRUST_PROXY_HOPS,
+    frontendOrigin: config.FRONTEND_ORIGIN,
+    production: config.NODE_ENV === "production",
   }));
   server.listen(config.PORT, () => {
     console.info(`Expense Tracker API listening on port ${config.PORT}`);

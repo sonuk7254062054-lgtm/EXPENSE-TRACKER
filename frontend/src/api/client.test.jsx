@@ -39,6 +39,19 @@ describe("API client", () => {
     await api.transactions({ page: 2, limit: 10, q: "coffee", unused: undefined });
     expect(fetch.mock.calls[0][0]).toBe("/api/transactions?page=2&limit=10&q=coffee");
   });
+
+  it("uses the configured absolute API base URL when deployed", async () => {
+    vi.stubEnv("VITE_API_BASE_URL", "https://api.example.com/api/");
+    vi.resetModules();
+    const { api: deployedApi } = await import("./client.js");
+    const fetch = vi.fn().mockResolvedValueOnce(jsonResponse({ status: "ok" }));
+    vi.stubGlobal("fetch", fetch);
+
+    await deployedApi.currentUser();
+
+    expect(fetch.mock.calls[0][0]).toBe("https://api.example.com/api/auth/me");
+    expect(fetch.mock.calls[0][1].credentials).toBe("include");
+  });
 });
 
 function ProtectedContent() {

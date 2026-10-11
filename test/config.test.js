@@ -64,3 +64,47 @@ test("rejects missing or weak session secrets", () => {
     );
   }
 });
+
+test("requires a public HTTPS frontend origin in production", () => {
+  const base = {
+    NODE_ENV: "production",
+    PORT: "10000",
+    TRUST_PROXY_HOPS: "1",
+    MONGODB_URI: "mongodb+srv://cluster.example.test/expense_tracker",
+    SESSION_SECRET: "production-session-secret-that-is-over-32-characters",
+  };
+
+  assert.throws(
+    () => loadConfig(base),
+    /FRONTEND_ORIGIN is required in production/,
+  );
+  assert.throws(
+    () => loadConfig({
+      ...base,
+      FRONTEND_ORIGIN: "https://expense.example.com",
+      MONGODB_URI: "mongodb://127.0.0.1:27017/expense_tracker",
+    }),
+    /production MONGODB_URI must be a MongoDB Atlas SRV URI/,
+  );
+  assert.throws(
+    () => loadConfig({
+      ...base,
+      FRONTEND_ORIGIN: "https://expense.example.com",
+      MONGODB_URI: "mongodb+srv://localhost/expense_tracker",
+    }),
+    /production MONGODB_URI must be a MongoDB Atlas SRV URI/,
+  );
+  assert.throws(
+    () => loadConfig({ ...base, FRONTEND_ORIGIN: "http://expense.example.com" }),
+    /must be an HTTPS origin/,
+  );
+  assert.throws(
+    () => loadConfig({ ...base, FRONTEND_ORIGIN: "https://expense.example.com/path" }),
+    /must be an HTTPS origin/,
+  );
+  assert.equal(
+    loadConfig({ ...base, FRONTEND_ORIGIN: "https://expense.example.com" })
+      .FRONTEND_ORIGIN,
+    "https://expense.example.com",
+  );
+});
