@@ -101,8 +101,7 @@ authentication secret is stored in browser local storage.
 ## Production deployment preparation
 
 The project is structured for a Vercel frontend, Render Node web service, and
-MongoDB Atlas database. It has no deployment manifests; set these values in
-the hosting dashboards:
+MongoDB Atlas database. Configure the hosting dashboards as follows:
 
 | Service | Root / setting | Value |
 | --- | --- | --- |
@@ -110,7 +109,7 @@ the hosting dashboards:
 | Vercel | Build command | `npm run build` |
 | Vercel | Output directory | `dist` |
 | Vercel | Environment variable | `VITE_API_BASE_URL=https://<render-service-host>/api` |
-| Vercel | SPA fallback | `vercel.json` routes client-side paths to `/index.html` |
+| Vercel | SPA fallback | `frontend/vercel.json` routes client-side paths to `/index.html` because the Vercel root directory is `frontend` |
 | Render | Root directory | Repository root (`.`) |
 | Render | Build command | `npm ci` |
 | Render | Start command | `npm start` |
