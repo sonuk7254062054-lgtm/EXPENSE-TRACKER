@@ -103,12 +103,24 @@ authentication secret is stored in browser local storage.
 The project is structured for a Vercel frontend, Render Node web service, and
 MongoDB Atlas database. Configure the hosting dashboards as follows:
 
+### Verified production deployment
+
+- Frontend: <https://expense-tracker-pi-nine-66.vercel.app>
+- Backend: <https://expense-tracker-api-zt0w.onrender.com>
+- Health check: <https://expense-tracker-api-zt0w.onrender.com/api/health>
+  returns HTTP 200 with `{"status":"ok","database":"connected"}`.
+
+The live application was checked for registration, login, session persistence
+after refresh, transaction creation/edit/deletion, reports, and logout using
+synthetic test data. The test transaction was deleted. The deployed frontend
+domain is the Vercel domain shown above; use this exact origin in Render.
+
 | Service | Root / setting | Value |
 | --- | --- | --- |
 | Vercel | Root directory | `frontend` |
 | Vercel | Build command | `npm run build` |
 | Vercel | Output directory | `dist` |
-| Vercel | Environment variable | `VITE_API_BASE_URL=https://<render-service-host>/api` |
+| Vercel | Environment variable | `VITE_API_BASE_URL=https://expense-tracker-api-zt0w.onrender.com/api` |
 | Vercel | SPA fallback | `frontend/vercel.json` routes client-side paths to `/index.html` because the Vercel root directory is `frontend` |
 | Render | Root directory | Repository root (`.`) |
 | Render | Build command | `npm ci` |
@@ -119,7 +131,7 @@ MongoDB Atlas database. Configure the hosting dashboards as follows:
 | Render | `TRUST_PROXY_HOPS` | `1` for the Render reverse-proxy hop; confirm against the service topology |
 | Render | `MONGODB_URI` | Atlas connection URI for a dedicated production database; store only in Render's secret environment settings |
 | Render | `SESSION_SECRET` | Independently generated random secret of at least 32 characters; store only in Render's secret environment settings |
-| Render | `FRONTEND_ORIGIN` | Exact production Vercel HTTPS origin, e.g. `https://expense-tracker.vercel.app` |
+| Render | `FRONTEND_ORIGIN` | `https://expense-tracker-pi-nine-66.vercel.app` |
 
 Provision the Atlas cluster and a dedicated database user with only the
 permissions the application needs on that database. Add the Render service's
@@ -135,12 +147,13 @@ that exact origin and credentialed requests; production session cookies are
 HTTP-only, Secure, and `SameSite=None` so browsers can send them across the
 Vercel/Render origins. The frontend must use `credentials: include`, as the
 existing API client does. The default `vercel.app` and `onrender.com` domains
-are cross-site, and browser third-party-cookie protections can still block
-sessions even with `SameSite=None`. For dependable browser sessions, use
-custom frontend and API domains under the same registrable domain (for example
-`app.example.com` and `api.example.com`) or configure a same-origin proxy.
-Keep Vercel preview deployments out of production access unless their exact
-origins are intentionally configured.
+are cross-site. Registration, login, and session persistence were verified in
+the deployment browser, but stricter browser third-party-cookie protections
+may still block sessions for some users even with `SameSite=None`. If that
+occurs, use custom frontend and API domains under the same registrable domain
+(for example `app.example.com` and `api.example.com`) or configure a
+same-origin proxy. Keep Vercel preview deployments out of production access
+unless their exact origins are intentionally configured.
 
 After setting environment variables, deploy the backend first, confirm
 `https://<render-service-host>/api/health` returns HTTP 200 with database
