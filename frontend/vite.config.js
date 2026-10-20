@@ -3,16 +3,21 @@ import react from "@vitejs/plugin-react";
 import { isIP } from "node:net";
 
 function validateVercelApiBaseUrl() {
-  const configuredUrl = process.env.VITE_API_BASE_URL;
-  if (!configuredUrl) {
-    throw new Error("VITE_API_BASE_URL must be set to the deployed HTTPS API base URL on Vercel");
+  const rawUrl = process.env.VITE_API_BASE_URL?.trim();
+  if (!rawUrl) {
+    throw new Error(
+      "Missing VITE_API_BASE_URL in Vercel environment variables.\n" +
+      "Please go to Vercel -> Project Settings -> Environment Variables and add:\n" +
+      "Key: VITE_API_BASE_URL\n" +
+      "Value: https://<your-render-service>.onrender.com/api"
+    );
   }
 
   let apiUrl;
   try {
-    apiUrl = new URL(configuredUrl);
+    apiUrl = new URL(rawUrl);
   } catch {
-    throw new Error("VITE_API_BASE_URL must be a valid HTTPS API base URL on Vercel");
+    throw new Error(`Invalid URL format for VITE_API_BASE_URL: "${rawUrl}". It must start with https://`);
   }
 
   const hostname = apiUrl.hostname.toLowerCase().replace(/^\[|\]$/g, "");
@@ -22,12 +27,20 @@ function validateVercelApiBaseUrl() {
     apiUrl.password ||
     apiUrl.search ||
     apiUrl.hash ||
-    apiUrl.pathname.replace(/\/+$/, "") !== "/api" ||
     hostname === "localhost" ||
     hostname.endsWith(".localhost") ||
     isIP(hostname) !== 0
   ) {
-    throw new Error("VITE_API_BASE_URL must be an external HTTPS host with the /api path and no credentials");
+    throw new Error(
+      `Invalid VITE_API_BASE_URL: "${rawUrl}". It must be a public HTTPS URL without credentials, port, or query params.`
+    );
+  }
+
+  // If user entered https://my-backend.onrender.com without /api, normalize it
+  if (!apiUrl.pathname.replace(/\/+$/, "").endsWith("/api")) {
+    const normalized = `${apiUrl.origin}/api`;
+    process.env.VITE_API_BASE_URL = normalized;
+    console.warn(`[vite] Notice: Automatically normalized VITE_API_BASE_URL to include /api: ${normalized}`);
   }
 }
 
